@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>3D Maze Ultimate</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;font-family:system-ui,sans-serif;touch-action:none}
+  canvas{display:block}
+  #c{width:100vw;height:100vh}
+  #ui{position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:10}
+  #timer{position:absolute;left:3vw;top:2vh;font-size:5vw;color:#fff;text-shadow:0 0 4px #000;font-weight:700}
+  #level{position:absolute;left:3vw;top:9vh;font-size:4vw;color:#0f0;text-shadow:0 0 3px #000}
+  #controls{position:absolute;left:3vw;top:16vh;display:flex;gap:2vw;pointer-events:auto}
+  #controls button{background:rgba(0,0,0,0.6);color:#fff;border:1.5px solid #fff;border-radius:2vw;font-size:4vw;padding:1vw 2.5vw}
+  #restart{position:absolute;right:3vw;top:2vh;font-size:5.5vw;background:rgba(0,0,0,0.5);color:#fff;border:2px solid #fff;border-radius:50%;width:11vw;height:11vw;pointer-events:auto}
+  #leftZone,#rightZone{position:fixed;top:0;bottom:0;width:50vw;z-index:5}
+  #leftZone{left:0} #rightZone{right:0}
+  #joy{position:absolute;width:18vw;height:18vw;border:2px solid rgba(255,255,255,0.25);border-radius:50%;left:16vw;bottom:16vw;display:none;pointer-events:none}
+  #joy::after{content:'';position:absolute;width:8vw;height:8vw;background:rgba(255,255,255,0.4);border-radius:50%;left:5vw;top:5vw}
+  #map{position:absolute;right:3vw;top:15vh;width:22vw;height:22vw;background:rgba(0,0,0,0.6);border:2px solid #fff;border-radius:1vw}
+  #win{position:fixed;inset:0;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;z-index:20;text-align:center;padding:5vw}
+  #win h1{font-size:10vw;margin:0} #win p{font-size:5vw;margin:1.5vw} #win button{font-size:5vw;padding:3vw 8vw;margin-top:3vw;background:#0f0;color:#000;border:none;border-radius:2vw;font-weight:700}
+  #board{font-size:3.8vw;opacity:0.9;margin-top:2vw;white-space:pre-line}
+</style>
+<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="timer">00:00</div>
+  <div id="level">Level 1</div>
+  <div id="controls">
+    <button id="flash">🔦</button>
+    <button id="music">🎵</button>
+    <button id="skin">🎨</button>
+  </div>
+  <button id="restart">🔄</button>
+  <canvas id="map" width="128" height="128"></canvas>
+</div>
+<div id="leftZone"><div id="joy"></div></div>
+<div id="rightZone"></div>
+<div id="win">
+  <h1>SELESAI!</h1>
+  <p id="finalTime"></p>
+  <p id="nextInfo"></p>
+  <div id="board"></div>
+  <button id="again">Lanjut</button>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+const LEVELS = [
+  {size:11, name:'Mudah'},
+  {size:15, name:'Sedang'},
+  {size:19, name:'Sulit'},
+  {size:23, name:'Ekstrem'}
+];
+const SKINS = ['#4a5af9','#ff4a4a','#00d1b2','#ffaa00','#8a2be2','#ffffff'];
+let skinIdx = 0;
+let currentLevel = parseInt(localStorage.getItem('mazeLevel')||'0');
+
+let scene, camera, renderer, walls=[], wallInstanced, goalMesh, flashlight, hemi, dirLight;
+let clock = new THREE.Clock();
+let startTime=0, paused=false, finished=false;
+const cellSize=2;
+let grid, startPos, endPos, mazeSize;
+let move={x:0,y:0}, rotDelta=0, leftId=null, rightId=null, lastTouch=0;
+const joy=document.getElementById('joy');
+const mapCtx=document.getElementById('map').getContext('2d');
+
+// AUDIO
+let audioCtx, musicOn=false, musicNodes=[];
+function initAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }
+function beep(f=440,d=0.05,v=0.05){initAudio(); const o=audioCtx.createOscillator(), g=audioCtx.createGain(); o.type='square'; o.frequency.value=f; g.gain.value=v; o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d);}
+function winSound(){[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.12,0.08),i*120));}
+function toggleMusic(){
+  initAudio(); musicOn=!musicOn;
+  document.getElementById('music').style.opacity = musicOn?1:0.5;
+  if(musicOn){
+    const seq=[330,0,392,0,440,0,523,0]; let step=0;
+    const play=()=>{ if(!musicOn) return; const f=seq[step%seq.length]; if(f) beep(f,0.1,0.03); step++; setTimeout(play,220); };
+    play();
+  }
+}
+
+function init(){
+  scene=new THREE.Scene(); scene.background=new THREE.Color(0x050508); scene.fog=new THREE.Fog(0x050508,8,22);
+  camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,100);
+  renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:false,powerPreference:'low-power'});
+  renderer.setPixelRatio(1); renderer.setSize(innerWidth,innerHeight);
+
+  hemi=new THREE.HemisphereLight(0xffffff,0x111122,0.9); scene.add(hemi);
+  dirLight=new THREE.DirectionalLight(0xffffff,0.4); dirLight.position.set(5,8,3); scene.add(dirLight);
+  flashlight=new THREE.SpotLight(0xffffff,0,15,Math.PI/5,0.5,1); flashlight.position.set(0,0.3,0); camera.add(flashlight); scene.add(camera);
+
+  loadLevel(); handleControls(); startTime=performance.now(); gameLoop();
+  document.addEventListener('visibilitychange',()=>{paused=document.hidden;});
+  window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+  document.getElementById('restart').onclick=()=>{beep(200); loadLevel();};
+  document.getElementById('again').onclick=nextLevel;
+  document.getElementById('flash').onclick=toggleFlash;
+  document.getElementById('music').onclick=toggleMusic;
+  document.getElementById('skin').onclick=changeSkin;
+}
+
+let flashOn=false;
+function toggleFlash(){
+  flashOn=!flashOn; beep(flashOn?800:400);
+  document.getElementById('flash').style.opacity=flashOn?1:0.5;
+  if(flashOn){ hemi.intensity=0.2; dirLight.intensity=0.05; flashlight.intensity=2.5; scene.fog.near=2; scene.fog.far=9; scene.background.set(0x000000); }
+  else { hemi.intensity=0.9; dirLight.intensity=0.4; flashlight.intensity=0; scene.fog.near=8; scene.fog.far=22; scene.background.set(0x050508); }
+}
+function changeSkin(){ skinIdx=(skinIdx+1)%SKINS.length; if(wallInstanced) wallInstanced.material.color.set(SKINS[skinIdx]); beep(600+skinIdx*50); localStorage.setItem('mazeSkin',skinIdx); }
+
+function loadLevel(){
+  walls.forEach(w=>scene.remove(w)); walls=[]; if(wallInstanced) scene.remove(wallInstanced); if(goalMesh) scene.remove(goalMesh);
+  mazeSize=LEVELS[currentLevel].size;
+  document.getElementById('level').textContent=`Level ${currentLevel+1} - ${LEVELS[currentLevel].name}`;
+  const data=generateMaze(mazeSize); grid=data.grid; startPos=data.start; endPos=data.end;
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(mazeSize*cellSize,mazeSize*cellSize), new THREE.MeshLambertMaterial({color:0x101025})); floor.rotation.x=-Math.PI/2; scene.add(floor);
+  const wallPos=[]; for(let z=0;z<mazeSize;z++) for(let x=0;x<mazeSize;x++) if(grid[z][x]) wallPos.push([x,z]);
+  const geo=new THREE.BoxGeometry(cellSize,1.4,cellSize); const mat=new THREE.MeshLambertMaterial({color:SKINS[skinIdx]});
+  wallInstanced=new THREE.InstancedMesh(geo,mat,wallPos.length); const dummy=new THREE.Object3D();
+  wallPos.forEach((p,i)=>{ dummy.position.set(p[0]*cellSize,0.7,p[1]*cellSize); dummy.updateMatrix(); wallInstanced.setMatrixAt(i,dummy.matrix); const w=new THREE.Mesh(new THREE.BoxGeometry(cellSize,1.4,cellSize)); w.position.copy(dummy.position); w.visible=false; walls.push(w); scene.add(w); });
+  scene.add(wallInstanced);
+  goalMesh=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.9,0.9), new THREE.MeshLambertMaterial({color:0x00ff88,emissive:0x00aa55})); goalMesh.position.set(endPos.x*cellSize,0.45,endPos.z*cellSize); scene.add(goalMesh);
+  camera.position.set(startPos.x*cellSize,0.8,startPos.z*cellSize); camera.rotation.y=0;
+  finished=false; startTime=performance.now(); document.getElementById('win').style.display='none'; drawMinimap();
+}
+
+function generateMaze(size){ const g=Array(size).fill().map(()=>Array(size).fill(1)); function carve(x,z){ g[z][x]=0; const dirs=[[2,0],[-2,0],[0,2],[0,-2]].sort(()=>Math.random()-0.5); for(const [dx,dz] of dirs){ const nx=x+dx,nz=z+dz; if(nx>0&&nx<size-1&&nz>0&&nz<size-1&&g[nz][nx]===1){ g[z+dz/2][x+dx/2]=0; carve(nx,nz);} } } carve(1,1); return {grid:g,start:{x:1,z:1},end:{x:size-2,z:size-2}}; }
+
+function handleControls(){
+  const left=document.getElementById('leftZone'), right=document.getElementById('rightZone');
+  const vib=()=>{if(navigator.vibrate)navigator.vibrate(8);};
+  left.addEventListener('touchstart',e=>{initAudio();vib(); const t=e.changedTouches[0]; leftId=t.identifier; joy.style.display='block'; joy.style.left=(t.clientX-9*innerWidth/100)+'px'; joy.style.top=(t.clientY-9*innerWidth/100)+'px';},{passive:false});
+  left.addEventListener('touchmove',e=>{ const now=performance.now(); if(now-lastTouch<20)return; lastTouch=now; for(const t of e.touches) if(t.identifier===leftId){ const dx=(t.clientX-parseFloat(joy.style.left)-9*innerWidth/100)/(9*innerWidth/100); const dy=(t.clientY-parseFloat(joy.style.top)-9*innerWidth/100)/(9*innerWidth/100); move.x=Math.max(-1,Math.min(1,dx)); move.y=Math.max(-1,Math.min(1,dy)); } },{passive:false});
+  left.addEventListener('touchend',()=>{leftId=null;move.x=0;move.y=0;joy.style.display='none';});
+  right.addEventListener('touchstart',e=>{vib(); rightId=e.changedTouches[0].identifier;},{passive:false});
+  right.addEventListener('touchmove',e=>{ for(const t of e.touches) if(t.identifier===rightId){rotDelta=t.clientX-(right._lastX||t.clientX); right._lastX=t.clientX;} },{passive:false});
+  right.addEventListener('touchend',()=>{rightId=null;rotDelta=0;right._lastX=null;});
+}
+
+function drawMinimap(){ const s=128/mazeSize; mapCtx.fillStyle='#000'; mapCtx.fillRect(0,0,128,128); for(let z=0;z<mazeSize;z++) for(let x=0;x<mazeSize;x++){ mapCtx.fillStyle=grid[z][x]?SKINS[skinIdx]:'#111'; mapCtx.fillRect(x*s,z*s,s,s);} mapCtx.fillStyle='#00ff88'; mapCtx.fillRect(endPos.x*s,endPos.z*s,s,s); }
+
+const ray=new THREE.Raycaster(); let stepTimer=0;
+function gameLoop(){ requestAnimationFrame(gameLoop); if(paused||finished) return; const delta=Math.min(clock.getDelta(),0.05); camera.rotation.y-=rotDelta*0.004; rotDelta*=0.85;
+  if(move.x||move.y){ const fwd=new THREE.Vector3(move.x,0,move.y).normalize().applyQuaternion(camera.quaternion); fwd.y=0; ray.set(camera.position,fwd); ray.far=0.65; const hit=ray.intersectObjects(walls); if(!hit.length){ camera.position.addScaledVector(fwd,2.2*delta); stepTimer+=delta; if(stepTimer>0.35){beep(300+Math.random()*50,0.02,0.02); stepTimer=0;} } else beep(150,0.03,0.03); }
+  const elapsed=Math.floor((performance.now()-startTime)/1000); document.getElementById('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+  const px=camera.position.x/cellSize, pz=camera.position.z/cellSize; drawMinimap(); const s=128/mazeSize; mapCtx.fillStyle='#fff'; mapCtx.beginPath(); mapCtx.arc(px*s+s/2,pz*s+s/2,3,0,Math.PI*2); mapCtx.fill();
+  if(camera.position.distanceTo(goalMesh.position)<1.1 && !finished){ finished=true; winSound(); if(navigator.vibrate)navigator.vibrate([40,30,40,30,80]); const timeStr=document.getElementById('timer').textContent; document.getElementById('finalTime').textContent=`Waktu: ${timeStr}`; saveBest(elapsed); document.getElementById('nextInfo').textContent=currentLevel<LEVELS.length-1?`Lanjut ke ${LEVELS[currentLevel+1].name}`:'Kamu tamatkan semua!'; document.getElementById('board').textContent=getBoardText(); document.getElementById('win').style.display='flex'; }
+  goalMesh.rotation.y+=delta*1.5; goalMesh.position.y=0.45+Math.sin(performance.now()*0.003)*0.1; renderer.render(scene,camera);
+}
+
+function saveBest(sec){ const key='mazeBest'; const data=JSON.parse(localStorage.getItem(key)||'{}'); const lvl=LEVELS[currentLevel].name; if(!data[lvl]||sec<data[lvl]) data[lvl]=sec; localStorage.setItem(key,JSON.stringify(data)); localStorage.setItem('mazeLevel',currentLevel); }
+function getBoardText(){ const data=JSON.parse(localStorage.getItem('mazeBest')||'{}'); let txt='🏆 Waktu Terbaik:\n'; LEVELS.forEach(l=>{ if(data[l.name]){ const s=data[l.name]; txt+=`${l.name}: ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}\n`; } }); return txt; }
+function nextLevel(){ currentLevel=(currentLevel+1)%LEVELS.length; localStorage.setItem('mazeLevel',currentLevel); loadLevel(); }
+
+skinIdx=parseInt(localStorage.getItem('mazeSkin')||'0');
+init();
+</script>
+</body>
+</html>
