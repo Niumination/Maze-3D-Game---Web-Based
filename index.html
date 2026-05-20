@@ -9,19 +9,21 @@
   canvas{display:block}
   #c{position:fixed;top:0;left:0;width:100%;height:100%}
   #ui{position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:10}
-  #timer{position:absolute;left:3vw;top:2vh;font-size:5vw;color:#fff;text-shadow:0 0 4px #000;font-weight:700}
-  #level{position:absolute;left:3vw;top:9vh;font-size:4vw;color:#0f0;text-shadow:0 0 3px #000}
-  #controls{position:absolute;left:3vw;top:16vh;display:flex;gap:2vw;pointer-events:auto}
-  #controls button{background:rgba(0,0,0,0.6);color:#fff;border:1.5px solid #fff;border-radius:2vw;font-size:4vw;padding:1vw 2.5vw}
-  #restart{position:absolute;right:3vw;top:2vh;font-size:5.5vw;background:rgba(0,0,0,0.5);color:#fff;border:2px solid #fff;border-radius:50%;width:11vw;height:11vw;pointer-events:auto}
+  #topbar{position:absolute;top:1.5vh;left:2vw;right:2vw;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+  #timer{font-size:clamp(12px,3.2vw,18px);color:#fff;text-shadow:0 0 3px #000;font-weight:600;background:rgba(0,0,0,0.4);padding:0.6vh 1.8vw;border-radius:1vw}
+  #level{font-size:clamp(11px,2.6vw,16px);color:#0f0;text-shadow:0 0 2px #000;background:rgba(0,0,0,0.4);padding:0.5vh 1.5vw;border-radius:1vw}
+  #leftPanel{position:absolute;left:2vw;top:8vh;pointer-events:none}
+  #map{width:clamp(80px,16vmin,120px);height:clamp(80px,16vmin,120px);background:rgba(0,0,0,0.55);border:1.5px solid rgba(255,255,255,0.7);border-radius:1.2vw;display:block}
+  #rightPanel{position:absolute;right:2vw;top:8vh;display:flex;flex-direction:column;gap:1.2vh;pointer-events:auto}
+  #rightPanel button{width:clamp(36px,7.5vw,48px);height:clamp(36px,7.5vw,48px);font-size:clamp(16px,3.5vw,20px);background:rgba(0,0,0,0.55);color:#fff;border:1.2px solid rgba(255,255,255,0.7);border-radius:50%;backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:0}
+  #rightPanel button:active{transform:scale(0.92)}
   #leftZone,#rightZone{position:fixed;top:0;bottom:0;width:50vw;z-index:5}
   #leftZone{left:0} #rightZone{right:0}
-  #joy{position:absolute;width:18vw;height:18vw;border:2px solid rgba(255,255,255,0.25);border-radius:50%;left:16vw;bottom:16vw;display:none;pointer-events:none}
-  #joy::after{content:'';position:absolute;width:8vw;height:8vw;background:rgba(255,255,255,0.4);border-radius:50%;left:5vw;top:5vw}
-  #map{position:absolute;right:3vw;top:15vh;width:22vw;height:22vw;background:rgba(0,0,0,0.6);border:2px solid #fff;border-radius:1vw}
+  #joy{position:absolute;width:14vw;height:14vw;max-width:70px;max-height:70px;border:1.5px solid rgba(255,255,255,0.25);border-radius:50%;left:12vw;bottom:12vw;display:none;pointer-events:none}
+  #joy::after{content:'';position:absolute;width:6vw;height:6vw;max-width:30px;max-height:30px;background:rgba(255,255,255,0.4);border-radius:50%;left:50%;top:50%;transform:translate(-50%,-50%)}
   #win{position:fixed;inset:0;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;z-index:20;text-align:center;padding:5vw}
-  #win h1{font-size:10vw;margin:0} #win p{font-size:5vw;margin:1.5vw} #win button{font-size:5vw;padding:3vw 8vw;margin-top:3vw;background:#0f0;color:#000;border:none;border-radius:2vw;font-weight:700}
-  #board{font-size:3.8vw;opacity:0.9;margin-top:2vw;white-space:pre-line}
+  #win h1{font-size:clamp(28px,7vw,42px);margin:0} #win p{font-size:clamp(14px,3.8vw,20px);margin:1.2vh} #win button{font-size:clamp(14px,4vw,18px);padding:1.8vh 5vw;margin-top:2vh;background:#0f0;color:#000;border:none;border-radius:1.5vw;font-weight:700}
+  #board{font-size:clamp(11px,3vw,15px);opacity:0.85;margin-top:1.5vh;white-space:pre-line;line-height:1.4}
 </style>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
@@ -29,15 +31,20 @@
 <body>
 <canvas id="c"></canvas>
 <div id="ui">
-  <div id="timer">00:00</div>
-  <div id="level">Level 1</div>
-  <div id="controls">
-    <button id="flash">🔦</button>
-    <button id="music">🎵</button>
-    <button id="skin">🎨</button>
+  <div id="topbar">
+    <div id="timer">00:00</div>
+    <div id="level">Level 1</div>
   </div>
-  <button id="restart">🔄</button>
-  <canvas id="map" width="128" height="128"></canvas>
+  <div id="leftPanel">
+    <canvas id="map" width="128" height="128"></canvas>
+  </div>
+  <div id="rightPanel">
+    <button id="restart" title="Restart">🔄</button>
+    <button id="flash" title="Senter">🔦</button>
+    <button id="music" title="Musik">🎵</button>
+    <button id="skin" title="Skin">🎨</button>
+    <button id="scale" title="Zoom">🔍</button>
+  </div>
 </div>
 <div id="leftZone"><div id="joy"></div></div>
 <div id="rightZone"></div>
@@ -58,8 +65,10 @@ const LEVELS = [
   {size:19, name:'Sulit'},
   {size:23, name:'Ekstrem'}
 ];
-const SKINS = ['#4a5af9','#ff4a4a','#00d1b2','#ffaa00','#8a2be2','#ffffff'];
+const SKINS = ['#808080','#4a5af9','#ff4a4a','#00d1b2','#ffaa00','#8a2be2','#ffffff'];
 let skinIdx = 0;
+const SCALES = [60,70,80,90,100];
+let scaleIdx = 2;
 let currentLevel = parseInt(localStorage.getItem('mazeLevel')||'0');
 
 let scene, camera, renderer, walls=[], wallInstanced, goalMesh, flashlight, hemi, dirLight;
@@ -95,6 +104,7 @@ function init(){
   hemi=new THREE.HemisphereLight(0xffffff,0x111122,0.9); scene.add(hemi);
   dirLight=new THREE.DirectionalLight(0xffffff,0.4); dirLight.position.set(5,8,3); scene.add(dirLight);
   flashlight=new THREE.SpotLight(0xffffff,0,15,Math.PI/5,0.5,1); flashlight.position.set(0,0.3,0); camera.add(flashlight); scene.add(camera);
+  camera.fov=SCALES[scaleIdx]; camera.updateProjectionMatrix();
 
   loadLevel(); handleControls(); startTime=performance.now(); gameLoop();
   document.addEventListener('visibilitychange',()=>{paused=document.hidden;});
@@ -112,6 +122,7 @@ function init(){
   document.getElementById('flash').onclick=toggleFlash;
   document.getElementById('music').onclick=toggleMusic;
   document.getElementById('skin').onclick=changeSkin;
+  document.getElementById('scale').onclick=changeScale;
 }
 
 let flashOn=false;
@@ -122,6 +133,7 @@ function toggleFlash(){
   else { hemi.intensity=0.9; dirLight.intensity=0.4; flashlight.intensity=0; scene.fog.near=8; scene.fog.far=22; scene.background.set(0x050508); }
 }
 function changeSkin(){ skinIdx=(skinIdx+1)%SKINS.length; if(wallInstanced) wallInstanced.material.color.set(SKINS[skinIdx]); beep(600+skinIdx*50); localStorage.setItem('mazeSkin',skinIdx); }
+function changeScale(){ scaleIdx=(scaleIdx+1)%SCALES.length; camera.fov=SCALES[scaleIdx]; camera.updateProjectionMatrix(); beep(400+scaleIdx*80); localStorage.setItem('mazeScale',scaleIdx); document.getElementById('scale').textContent=['🔍','🔎','👁️','👀','🔭'][scaleIdx]; }
 
 function loadLevel(){
   walls.forEach(w=>scene.remove(w)); walls=[]; if(wallInstanced) scene.remove(wallInstanced); if(goalMesh) scene.remove(goalMesh);
@@ -135,7 +147,9 @@ function loadLevel(){
   wallPos.forEach((p,i)=>{ dummy.position.set(p[0]*cellSize,0.7,p[1]*cellSize); dummy.updateMatrix(); wallInstanced.setMatrixAt(i,dummy.matrix); const w=new THREE.Mesh(new THREE.BoxGeometry(cellSize,1.4,cellSize)); w.position.copy(dummy.position); w.visible=false; walls.push(w); scene.add(w); });
   scene.add(wallInstanced);
   goalMesh=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.9,0.9), new THREE.MeshLambertMaterial({color:0x00ff88,emissive:0x00aa55})); goalMesh.position.set(endPos.x*cellSize,0.45,endPos.z*cellSize); scene.add(goalMesh);
-  camera.position.set(startPos.x*cellSize,0.8,startPos.z*cellSize); camera.rotation.y=0;
+  camera.position.set(startPos.x*cellSize,0.8,startPos.z*cellSize);
+  // langsung menghadap ke depan (arah +Z)
+  camera.lookAt(startPos.x*cellSize, 0.8, startPos.z*cellSize + 2);
   finished=false; startTime=performance.now(); document.getElementById('win').style.display='none'; drawMinimap();
 }
 
@@ -168,6 +182,8 @@ function getBoardText(){ const data=JSON.parse(localStorage.getItem('mazeBest')|
 function nextLevel(){ currentLevel=(currentLevel+1)%LEVELS.length; localStorage.setItem('mazeLevel',currentLevel); loadLevel(); }
 
 skinIdx=parseInt(localStorage.getItem('mazeSkin')||'0');
+scaleIdx=parseInt(localStorage.getItem('mazeScale')||'2');
+document.getElementById('scale').textContent=['🔍','🔎','👁️','👀','🔭'][scaleIdx];
 init();
 </script>
 </body>
