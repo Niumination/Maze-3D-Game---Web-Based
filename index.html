@@ -42,7 +42,7 @@
     <button id="restart" title="Restart">🔄</button>
     <button id="flash" title="Senter">🔦</button>
     <button id="music" title="Musik">🎵</button>
-    <button id="skin" title="Skin">🎨</button>
+    <button id="skin" title="Tema Dinding">🎨</button>
     <button id="scale" title="Zoom">🔍</button>
   </div>
 </div>
@@ -65,8 +65,16 @@ const LEVELS = [
   {size:19, name:'Sulit'},
   {size:23, name:'Ekstrem'}
 ];
-const SKINS = ['#808080','#4a5af9','#ff4a4a','#00d1b2','#ffaa00','#8a2be2','#ffffff'];
-let skinIdx = 0;
+const THEMES = [
+  {name:'Grey', color:0x808080, emissive:0x000000},
+  {name:'Neon Blue', color:0x4a5af9, emissive:0x0a0a33},
+  {name:'Lava', color:0xff4a4a, emissive:0x330000},
+  {name:'Matrix', color:0x00d1b2, emissive:0x002211},
+  {name:'Amber', color:0xffaa00, emissive:0x331800},
+  {name:'Plasma', color:0x8a2be2, emissive:0x1a0033},
+  {name:'Ice', color:0x88ccff, emissive:0x001122}
+];
+let themeIdx = 0;
 const SCALES = [60,70,80,90,100];
 let scaleIdx = 2;
 let currentLevel = parseInt(localStorage.getItem('mazeLevel')||'0');
@@ -121,7 +129,7 @@ function init(){
   document.getElementById('again').onclick=nextLevel;
   document.getElementById('flash').onclick=toggleFlash;
   document.getElementById('music').onclick=toggleMusic;
-  document.getElementById('skin').onclick=changeSkin;
+  document.getElementById('skin').onclick=changeTheme;
   document.getElementById('scale').onclick=changeScale;
 }
 
@@ -132,7 +140,8 @@ function toggleFlash(){
   if(flashOn){ hemi.intensity=0.2; dirLight.intensity=0.05; flashlight.intensity=2.5; scene.fog.near=2; scene.fog.far=9; scene.background.set(0x000000); }
   else { hemi.intensity=0.9; dirLight.intensity=0.4; flashlight.intensity=0; scene.fog.near=8; scene.fog.far=22; scene.background.set(0x050508); }
 }
-function changeSkin(){ skinIdx=(skinIdx+1)%SKINS.length; if(wallInstanced) wallInstanced.material.color.set(SKINS[skinIdx]); beep(600+skinIdx*50); localStorage.setItem('mazeSkin',skinIdx); }
+function changeTheme(){ themeIdx=(themeIdx+1)%THEMES.length; const t=THEMES[themeIdx]; if(wallInstanced){ wallInstanced.material.color.setHex(t.color); wallInstanced.material.emissive.setHex(t.emissive); } beep(600+themeIdx*40); localStorage.setItem('mazeTheme',themeIdx); showToast(t.name); }
+function showToast(txt){ const el=document.getElementById('level'); const old=el.textContent; el.textContent='Tema: '+txt; el.style.color='#ff0'; setTimeout(()=>{el.textContent=old; el.style.color='#0f0';},900); }
 function changeScale(){ scaleIdx=(scaleIdx+1)%SCALES.length; camera.fov=SCALES[scaleIdx]; camera.updateProjectionMatrix(); beep(400+scaleIdx*80); localStorage.setItem('mazeScale',scaleIdx); document.getElementById('scale').textContent=['🔍','🔎','👁️','👀','🔭'][scaleIdx]; }
 
 function loadLevel(){
@@ -142,7 +151,7 @@ function loadLevel(){
   const data=generateMaze(mazeSize); grid=data.grid; startPos=data.start; endPos=data.end;
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(mazeSize*cellSize,mazeSize*cellSize), new THREE.MeshLambertMaterial({color:0x101025})); floor.rotation.x=-Math.PI/2; scene.add(floor);
   const wallPos=[]; for(let z=0;z<mazeSize;z++) for(let x=0;x<mazeSize;x++) if(grid[z][x]) wallPos.push([x,z]);
-  const geo=new THREE.BoxGeometry(cellSize,1.4,cellSize); const mat=new THREE.MeshLambertMaterial({color:SKINS[skinIdx]});
+  const geo=new THREE.BoxGeometry(cellSize,1.4,cellSize); const t=THEMES[themeIdx]; const mat=new THREE.MeshLambertMaterial({color:t.color, emissive:t.emissive});
   wallInstanced=new THREE.InstancedMesh(geo,mat,wallPos.length); const dummy=new THREE.Object3D();
   wallPos.forEach((p,i)=>{ dummy.position.set(p[0]*cellSize,0.7,p[1]*cellSize); dummy.updateMatrix(); wallInstanced.setMatrixAt(i,dummy.matrix); const w=new THREE.Mesh(new THREE.BoxGeometry(cellSize,1.4,cellSize)); w.position.copy(dummy.position); w.visible=false; walls.push(w); scene.add(w); });
   scene.add(wallInstanced);
@@ -166,10 +175,10 @@ function handleControls(){
   right.addEventListener('touchend',()=>{rightId=null;rotDelta=0;right._lastX=null;});
 }
 
-function drawMinimap(){ const s=128/mazeSize; mapCtx.fillStyle='#000'; mapCtx.fillRect(0,0,128,128); for(let z=0;z<mazeSize;z++) for(let x=0;x<mazeSize;x++){ mapCtx.fillStyle=grid[z][x]?SKINS[skinIdx]:'#111'; mapCtx.fillRect(x*s,z*s,s,s);} mapCtx.fillStyle='#00ff88'; mapCtx.fillRect(endPos.x*s,endPos.z*s,s,s); }
+function drawMinimap(){ const s=128/mazeSize; mapCtx.fillStyle='#000'; mapCtx.fillRect(0,0,128,128); for(let z=0;z<mazeSize;z++) for(let x=0;x<mazeSize;x++){ mapCtx.fillStyle=grid[z][x]?'#'+THEMES[themeIdx].color.toString(16).padStart(6,'0'):'#111'; mapCtx.fillRect(x*s,z*s,s,s);} mapCtx.fillStyle='#00ff88'; mapCtx.fillRect(endPos.x*s,endPos.z*s,s,s); }
 
 const ray=new THREE.Raycaster(); let stepTimer=0;
-function gameLoop(){ requestAnimationFrame(gameLoop); if(paused||finished) return; const delta=Math.min(clock.getDelta(),0.05); camera.rotation.y-=rotDelta*0.004; rotDelta*=0.85;
+function gameLoop(){ requestAnimationFrame(gameLoop); if(paused||finished) return; const delta=Math.min(clock.getDelta(),0.05); camera.rotation.y -= rotDelta*0.005; rotDelta *= 0.8;
   if(move.x||move.y){ const fwd=new THREE.Vector3(move.x,0,move.y).normalize().applyQuaternion(camera.quaternion); fwd.y=0; ray.set(camera.position,fwd); ray.far=0.65; const hit=ray.intersectObjects(walls); if(!hit.length){ camera.position.addScaledVector(fwd,2.2*delta); stepTimer+=delta; if(stepTimer>0.35){beep(300+Math.random()*50,0.02,0.02); stepTimer=0;} } else beep(150,0.03,0.03); }
   const elapsed=Math.floor((performance.now()-startTime)/1000); document.getElementById('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
   const px=camera.position.x/cellSize, pz=camera.position.z/cellSize; drawMinimap(); const s=128/mazeSize; mapCtx.fillStyle='#fff'; mapCtx.beginPath(); mapCtx.arc(px*s+s/2,pz*s+s/2,3,0,Math.PI*2); mapCtx.fill();
@@ -181,7 +190,7 @@ function saveBest(sec){ const key='mazeBest'; const data=JSON.parse(localStorage
 function getBoardText(){ const data=JSON.parse(localStorage.getItem('mazeBest')||'{}'); let txt='🏆 Waktu Terbaik:\n'; LEVELS.forEach(l=>{ if(data[l.name]){ const s=data[l.name]; txt+=`${l.name}: ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}\n`; } }); return txt; }
 function nextLevel(){ currentLevel=(currentLevel+1)%LEVELS.length; localStorage.setItem('mazeLevel',currentLevel); loadLevel(); }
 
-skinIdx=parseInt(localStorage.getItem('mazeSkin')||'0');
+themeIdx=parseInt(localStorage.getItem('mazeTheme')||'0');
 scaleIdx=parseInt(localStorage.getItem('mazeScale')||'2');
 document.getElementById('scale').textContent=['🔍','🔎','👁️','👀','🔭'][scaleIdx];
 init();
