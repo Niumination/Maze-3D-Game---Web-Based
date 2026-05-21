@@ -24,6 +24,23 @@
   #win{position:fixed;inset:0;background:rgba(0,0,0,0.92);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;z-index:20;text-align:center;padding:5vw}
   #win h1{font-size:clamp(28px,7vw,42px);margin:0} #win p{font-size:clamp(14px,3.8vw,20px);margin:1.2vh} #win button{font-size:clamp(14px,4vw,18px);padding:1.8vh 5vw;margin-top:2vh;background:#0f0;color:#000;border:none;border-radius:1.5vw;font-weight:700}
   #board{font-size:clamp(11px,3vw,15px);opacity:0.85;margin-top:1.5vh;white-space:pre-line;line-height:1.4}
+  #crosshair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:6px;height:6px;border:1.5px solid rgba(255,255,255,0.5);border-radius:50%;pointer-events:none;z-index:15;display:none}
+  #controlsHint{position:fixed;bottom:2vh;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.6);font-size:clamp(10px,2.5vw,13px);text-align:center;pointer-events:none;z-index:15;background:rgba(0,0,0,0.4);padding:0.5vh 2vw;border-radius:1vw;display:none}
+  #pauseOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:25;color:#fff}
+  #pauseOverlay h2{font-size:clamp(24px,6vw,36px);margin:0 0 2vh}
+  #pauseOverlay button{font-size:clamp(14px,3.5vw,18px);padding:1.2vh 4vw;margin:0.8vh;background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:1vw;cursor:pointer;min-width:200px}
+  #pauseOverlay button:hover{background:rgba(255,255,255,0.25)}
+  #pauseOverlay button.mod-cta{background:#0f0;color:#000;border-color:#0f0;font-weight:700}
+  #mainMenu{position:fixed;inset:0;background:linear-gradient(135deg,#0a0a1a 0%,#1a0a2a 50%,#0a1a2a 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:30;color:#fff;text-align:center;padding:5vw}
+  #mainMenu h1{font-size:clamp(32px,8vw,56px);margin:0 0 1vh;background:linear-gradient(90deg,#0f0,#0af,#f0a);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-shadow:none}
+  #mainMenu .subtitle{font-size:clamp(12px,3vw,16px);opacity:0.7;margin-bottom:4vh}
+  #mainMenu button{font-size:clamp(16px,4vw,20px);padding:1.5vh 6vw;margin:0.8vh;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:1.5vw;cursor:pointer;min-width:250px;transition:all 0.2s}
+  #mainMenu button:hover{background:rgba(255,255,255,0.2);transform:scale(1.05)}
+  #mainMenu button.mod-cta{background:linear-gradient(90deg,#0f0,#0a0);color:#000;border-color:#0f0;font-weight:700}
+  #mainMenu .bestTimes{font-size:clamp(11px,2.5vw,14px);opacity:0.6;margin-top:3vh;white-space:pre-line}
+  #mainMenu .controls{font-size:clamp(10px,2.2vw,12px);opacity:0.4;margin-top:2vh}
+  #hud{position:fixed;bottom:2vh;left:2vw;pointer-events:none;z-index:15;color:#fff;font-size:clamp(11px,2.5vw,14px);display:none}
+  #hud .item{background:rgba(0,0,0,0.5);padding:0.4vh 1.2vw;border-radius:0.8vw;margin:0.3vh 0;display:inline-block;margin-right:1vw}
 </style>
 <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
@@ -48,12 +65,36 @@
 </div>
 <div id="leftZone"><div id="joy"></div></div>
 <div id="rightZone"></div>
+<div id="crosshair"></div>
+<div id="controlsHint"></div>
+<div id="hud">
+  <span class="item" id="hudKey">🔑 0</span>
+  <span class="item" id="hudShield" style="display:none">🛡️</span>
+  <span class="item" id="hudSpeed" style="display:none">⚡</span>
+  <span class="item" id="hudCompass" style="display:none">🧭 ON</span>
+</div>
 <div id="win">
   <h1>SELESAI!</h1>
   <p id="finalTime"></p>
   <p id="nextInfo"></p>
   <div id="board"></div>
   <button id="again">Lanjut</button>
+</div>
+<div id="pauseOverlay">
+  <h2>⏸ PAUSE</h2>
+  <button id="resumeBtn" class="mod-cta">▶ Resume</button>
+  <button id="pauseRestart">🔄 Restart</button>
+  <button id="pauseMenu">🏠 Main Menu</button>
+</div>
+<div id="mainMenu">
+  <h1>3D MAZE ULTIMATE</h1>
+  <p class="subtitle">Temukan jalan keluar dari labirin misterius!</p>
+  <button id="menuPlay" class="mod-cta">▶ MAIN</button>
+  <button id="menuBest">🏆 Waktu Terbaik</button>
+  <button id="menuHelp">❓ Cara Main</button>
+  <div id="menuBestTimes" class="bestTimes" style="display:none"></div>
+  <div id="menuHelpText" class="bestTimes" style="display:none"></div>
+  <p class="controls" id="menuControls"></p>
 </div>
 
 <script type="module">
@@ -79,6 +120,7 @@ let currentLevel = parseInt(localStorage.getItem('mazeLevel')||'0');
 
 let scene, camera, renderer, walls=[], wallInstanced, goalMesh, flashlight, hemi, dirLight;
 let movingObs=[], holes=[];
+let powerups=[], keyCount=0, hasShield=false, speedBoostEnd=0, compassOn=false;
 let clock = new THREE.Clock();
 let startTime=0, paused=false, finished=false;
 const cellSize=2;
@@ -86,6 +128,18 @@ let grid, startPos, endPos, mazeSize;
 let move={x:0,y:0}, rotDelta=0, leftId=null, rightId=null, lastTouch=0;
 const joy=document.getElementById('joy');
 const mapCtx=document.getElementById('map').getContext('2d');
+
+// PLATFORM DETECTION
+const isDesktop = !('ontouchstart' in window) || navigator.maxTouchPoints === 0;
+const crosshair = document.getElementById('crosshair');
+const controlsHint = document.getElementById('controlsHint');
+let pointerLocked = false;
+
+// GAME STATE
+let gameState = 'menu'; // 'menu', 'playing', 'paused', 'win'
+
+// KEYBOARD STATE
+const keys = {};
 
 // AUDIO
 let audioCtx, musicOn=false, musicNodes=[];
@@ -101,6 +155,81 @@ function toggleMusic(){
     play();
   }
 }
+
+// KEYBOARD & MOUSE CONTROLS (DESKTOP)
+function handleKeyboardControls(){
+  if(!isDesktop) return;
+
+  // Show desktop hints
+  crosshair.style.display = 'block';
+  controlsHint.style.display = 'block';
+  controlsHint.textContent = 'WASD = Move | Mouse = Look | Click = Lock | ESC = Pause | R=Restart F=Flashlight M=Music';
+
+  // Keyboard input
+  document.addEventListener('keydown', (e) => {
+    if(gameState === 'menu' || gameState === 'win') return;
+    keys[e.code] = true;
+
+    // ESC = pause
+    if(e.code === 'Escape'){
+      if(pointerLocked){
+        document.exitPointerLock();
+      } else {
+        togglePause();
+      }
+      return;
+    }
+
+    // Keyboard shortcuts (only when playing)
+    if(gameState === 'playing'){
+      if(e.code === 'KeyR') { beep(200); loadLevel(); }
+      if(e.code === 'KeyF') toggleFlash();
+      if(e.code === 'KeyM') toggleMusic();
+      if(e.code === 'KeyT') changeTheme();
+      if(e.code === 'Equal' || e.code === 'NumpadAdd') changeScale();
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+  });
+
+  // Pointer Lock for mouse look
+  const canvas = document.getElementById('c');
+  canvas.addEventListener('click', () => {
+    if(!paused && !finished && !pointerLocked){
+      canvas.requestPointerLock();
+    }
+  });
+
+  document.addEventListener('pointerlockchange', () => {
+    pointerLocked = document.pointerLockElement === canvas;
+    crosshair.style.opacity = pointerLocked ? 1 : 0.3;
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if(pointerLocked && !paused && !finished){
+      rotDelta += e.movementX * 0.3;
+    }
+  });
+}
+
+// PAUSE SYSTEM
+function togglePause(){
+  if(gameState === 'win') return;
+  paused = !paused;
+  gameState = paused ? 'paused' : 'playing';
+  const overlay = document.getElementById('pauseOverlay');
+  if(paused){
+    overlay.style.display = 'flex';
+    if(pointerLocked) document.exitPointerLock();
+  } else {
+    overlay.style.display = 'none';
+    startTime = performance.now() - (elapsed * 1000);
+  }
+}
+
+let elapsed = 0;
 
 
 function createWallTexture(theme){
@@ -146,8 +275,10 @@ function init(){
   scene.add(camera);
   camera.fov=SCALES[scaleIdx]; camera.updateProjectionMatrix();
 
-  loadLevel(); handleControls(); startTime=performance.now(); gameLoop();
-  document.addEventListener('visibilitychange',()=>{paused=document.hidden;});
+  handleControls(); handleKeyboardControls(); setupMainMenu();
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden && gameState==='playing'){ paused=true; }
+  });
   function onResize(){
     const w = window.innerWidth, h = window.innerHeight;
     camera.aspect = w/h;
@@ -163,6 +294,77 @@ function init(){
   document.getElementById('music').onclick=toggleMusic;
   document.getElementById('skin').onclick=changeTheme;
   document.getElementById('scale').onclick=changeScale;
+
+  // Pause menu buttons
+  document.getElementById('resumeBtn').onclick = () => togglePause();
+  document.getElementById('pauseRestart').onclick = () => { beep(200); loadLevel(); togglePause(); };
+  document.getElementById('pauseMenu').onclick = () => { showMainMenu(); };
+
+  // Start game loop (will skip if paused/menu)
+  gameLoop();
+}
+
+// MAIN MENU SYSTEM
+function setupMainMenu(){
+  const menu = document.getElementById('mainMenu');
+  const playBtn = document.getElementById('menuPlay');
+  const bestBtn = document.getElementById('menuBest');
+  const helpBtn = document.getElementById('menuHelp');
+  const bestTimes = document.getElementById('menuBestTimes');
+  const helpText = document.getElementById('menuHelpText');
+  const controlsText = document.getElementById('menuControls');
+
+  // Show controls hint based on platform
+  if(isDesktop){
+    controlsText.textContent = 'Desktop: WASD + Mouse | Mobile: Touch Controls';
+  } else {
+    controlsText.textContent = 'Mobile: Left Joystick = Move | Right Swipe = Look';
+  }
+
+  playBtn.onclick = () => {
+    menu.style.display = 'none';
+    gameState = 'playing';
+    loadLevel();
+    startTime = performance.now();
+  };
+
+  bestBtn.onclick = () => {
+    const data = JSON.parse(localStorage.getItem('mazeBest')||'{}');
+    let txt = '🏆 Waktu Terbaik:\n';
+    let hasData = false;
+    LEVELS.forEach(l => {
+      if(data[l.name]){
+        const s = data[l.name];
+        txt += `${l.name}: ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}\n`;
+        hasData = true;
+      }
+    });
+    if(!hasData) txt += 'Belum ada catatan waktu.\nMainkan game dulu!';
+    bestTimes.textContent = txt;
+    bestTimes.style.display = bestTimes.style.display === 'none' ? 'block' : 'none';
+    helpText.style.display = 'none';
+  };
+
+  helpBtn.onclick = () => {
+    const txt = `🎮 Cara Main:\n\n` +
+      `🎯 Tujuan: Temukan kotak hijau (exit)\n` +
+      `⚠️ Hindari: Kotak merah (patroli) & lubang hitam\n` +
+      `🔦 Senter: Tekan F untuk mode gelap\n` +
+      `🎨 Tema: Tekan T untuk ganti tema dinding\n` +
+      `⏸ Pause: Tekan ESC\n\n` +
+      (isDesktop ? `🖥️ Desktop:\nWASD = Gerak | Mouse = Lihat\nKlik = Lock Mouse` : `📱 Mobile:\nKiri = Joystick Gerak\nKanan = Swipe untuk Lihat`);
+    helpText.textContent = txt;
+    helpText.style.display = helpText.style.display === 'none' ? 'block' : 'none';
+    bestTimes.style.display = 'none';
+  };
+}
+
+function showMainMenu(){
+  gameState = 'menu';
+  paused = false;
+  document.getElementById('mainMenu').style.display = 'flex';
+  document.getElementById('pauseOverlay').style.display = 'none';
+  if(pointerLocked) document.exitPointerLock();
 }
 
 let flashOn=false;
@@ -195,15 +397,26 @@ function loadLevel(){
   }
   // RINTANGAN BERGERAK PATROLI
   movingObs=[]; 
+  const enemyCount = Math.min(2+currentLevel, 5);
+  const detectRadius = [5, 7, 9, 11][currentLevel] || 5;
   const patrolMat=new THREE.MeshLambertMaterial({color:0xff3333, emissive:0x440000});
-  for(let i=0;i<3;i++){
+  const chaseMat=new THREE.MeshLambertMaterial({color:0xff0000, emissive:0xff0000, emissiveIntensity:0.5});
+  for(let i=0;i<enemyCount;i++){
     let tries=0; while(tries<50){
       const x=2+Math.floor(Math.random()*(mazeSize-4));
       const z=2+Math.floor(Math.random()*(mazeSize-4));
-      if(grid[z][x]===0 && grid[z][x+1]===0){
-        const mob=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.5,0.8), patrolMat);
+      if(grid[z][x]===0 && grid[z][x+1]===0 && Math.hypot(x-startPos.x,z-startPos.z)>3){
+        const mob=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.5,0.8), patrolMat.clone());
         mob.position.set(x*cellSize,0.25,z*cellSize);
-        mob.userData={ax:x*cellSize, az:z*cellSize, bx:(x+1)*cellSize, bz:z*cellSize, t:Math.random(), dir:1};
+        const px=Math.floor(startPos.x), pz=Math.floor(startPos.z);
+        const path = findPath(x,z,px,pz);
+        mob.userData={
+          state:'patrol', // patrol, chase, search
+          ax:x*cellSize, az:z*cellSize, bx:(x+1)*cellSize, bz:z*cellSize, t:Math.random(), dir:1,
+          path:path, pathIdx:0, pathTimer:0,
+          detectRadius:detectRadius, speed:0.8+currentLevel*0.15,
+          lastPlayerX:0, lastPlayerZ:0, searchTimer:0
+        };
         scene.add(mob); walls.push(mob); movingObs.push(mob); break;
       }
       tries++;
@@ -225,6 +438,29 @@ function loadLevel(){
     }
   }
 
+  // POWER-UPS
+  powerups=[]; keyCount=0; hasShield=false; speedBoostEnd=0;
+  const puTypes = ['key','speed','shield','compass'];
+  const puColors = {key:0xffd700, speed:0x00bfff, shield:0xc0c0c0, compass:0xff69b4};
+  const puEmojis = {key:'🔑', speed:'⚡', shield:'🛡️', compass:'🧭'};
+  const puCount = Math.max(3, Math.floor(mazeSize/4));
+  for(let i=0;i<puCount;i++){
+    let tries=0; while(tries<50){
+      const x=2+Math.floor(Math.random()*(mazeSize-4));
+      const z=2+Math.floor(Math.random()*(mazeSize-4));
+      if(grid[z][x]===0 && !(x===startPos.x&&z===startPos.z) && !(x===endPos.x&&z===endPos.z)){
+        const type = i===0 ? 'key' : puTypes[Math.floor(Math.random()*puTypes.length)];
+        const geo = type==='key' ? new THREE.OctahedronGeometry(0.35) : new THREE.SphereGeometry(0.3,8,8);
+        const mat = new THREE.MeshLambertMaterial({color:puColors[type], emissive:puColors[type], emissiveIntensity:0.3});
+        const pu = new THREE.Mesh(geo, mat);
+        pu.position.set(x*cellSize, 0.5, z*cellSize);
+        pu.userData = {type, emoji:puEmojis[type], baseY:0.5};
+        scene.add(pu); powerups.push(pu); break;
+      }
+      tries++;
+    }
+  }
+
   const wallPos=[]; for(let z=0;z<mazeSize;z++) for(let x=0;x<mazeSize;x++) if(grid[z][x]) wallPos.push([x,z]);
   const geo=new THREE.BoxGeometry(cellSize,1.4,cellSize); const t=THEMES[themeIdx]; const tex=createWallTexture(t.type); const mat=new THREE.MeshLambertMaterial({map:tex});
   wallInstanced=new THREE.InstancedMesh(geo,mat,wallPos.length); const dummy=new THREE.Object3D();
@@ -234,7 +470,9 @@ function loadLevel(){
   camera.position.set(startPos.x*cellSize,0.8,startPos.z*cellSize);
   // langsung menghadap ke depan (arah +Z)
   camera.lookAt(startPos.x*cellSize, 0.8, startPos.z*cellSize + 2);
-  finished=false; startTime=performance.now(); document.getElementById('win').style.display='none'; drawMinimap();
+  finished=false; elapsed=0; gameState='playing'; startTime=performance.now(); document.getElementById('win').style.display='none'; document.getElementById('pauseOverlay').style.display='none'; document.getElementById('hud').style.display='none'; paused=false; drawMinimap();
+  window._needKeyMsg = false; window._falling = false; window._hitCooldown = false;
+  if(pointerLocked) document.exitPointerLock();
 }
 
 function generateMaze(size){ const g=Array(size).fill().map(()=>Array(size).fill(1)); function carve(x,z){ g[z][x]=0; const dirs=[[2,0],[-2,0],[0,2],[0,-2]].sort(()=>Math.random()-0.5); for(const [dx,dz] of dirs){ const nx=x+dx,nz=z+dz; if(nx>0&&nx<size-1&&nz>0&&nz<size-1&&g[nz][nx]===1){ g[z+dz/2][x+dx/2]=0; carve(nx,nz);} } } carve(1,1); return {grid:g,start:{x:1,z:1},end:{x:size-2,z:size-2}}; }
@@ -253,20 +491,132 @@ function handleControls(){
 function drawMinimap(){ const s=128/mazeSize; mapCtx.fillStyle='#000'; mapCtx.fillRect(0,0,128,128); for(let z=0;z<mazeSize;z++) for(let x=0;x<mazeSize;x++){ const themeColors={forest:'#3a5f2b',city:'#6a6e73',stone:'#5a5a5a',neon:'#4a5af9',sand:'#c2a87a'}; mapCtx.fillStyle=grid[z][x]?themeColors[THEMES[themeIdx].type]:'#111'; mapCtx.fillRect(x*s,z*s,s,s);} mapCtx.fillStyle='#00ff88'; mapCtx.fillRect(endPos.x*s,endPos.z*s,s,s); }
 
 const ray=new THREE.Raycaster(); let stepTimer=0;
-function gameLoop(){ requestAnimationFrame(gameLoop); if(paused||finished) return; const delta=Math.min(clock.getDelta(),0.05); camera.rotation.y += rotDelta*0.005; rotDelta *= 0.8; // swipe kanan = belok kanan
-  if(move.x||move.y){ const fwd=new THREE.Vector3(move.x,0,move.y).normalize().applyQuaternion(camera.quaternion); fwd.y=0; ray.set(camera.position,fwd); ray.far=0.65; const hit=ray.intersectObjects(walls); if(!hit.length){ camera.position.addScaledVector(fwd,2.2*delta); stepTimer+=delta; if(stepTimer>0.35){beep(300+Math.random()*50,0.02,0.02); stepTimer=0;} } else beep(150,0.03,0.03); }
-  const elapsed=Math.floor((performance.now()-startTime)/1000); document.getElementById('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+function gameLoop(){ requestAnimationFrame(gameLoop); if(gameState!=='playing'||finished) return; const delta=Math.min(clock.getDelta(),0.05);
+
+  // KEYBOARD MOVEMENT (WASD)
+  if(isDesktop){
+    let kx=0, ky=0;
+    if(keys['KeyW']||keys['ArrowUp']) ky=-1;
+    if(keys['KeyS']||keys['ArrowDown']) ky=1;
+    if(keys['KeyA']||keys['ArrowLeft']) kx=-1;
+    if(keys['KeyD']||keys['ArrowRight']) kx=1;
+    if(kx||ky){
+      const len = Math.sqrt(kx*kx+ky*ky);
+      move.x = kx/len;
+      move.y = ky/len;
+    } else if(!leftId) {
+      move.x = 0;
+      move.y = 0;
+    }
+  }
+
+  camera.rotation.y += rotDelta*0.005; rotDelta *= 0.8; // swipe kanan = belok kanan
+  if(move.x||move.y){ const fwd=new THREE.Vector3(move.x,0,move.y).normalize().applyQuaternion(camera.quaternion); fwd.y=0; ray.set(camera.position,fwd); ray.far=0.65; const hit=ray.intersectObjects(walls); if(!hit.length){ const speed = 2.2 * delta * getSpeedMultiplier(); camera.position.addScaledVector(fwd, speed); stepTimer+=delta; if(stepTimer>0.35){beep(300+Math.random()*50,0.02,0.02); stepTimer=0;} } else beep(150,0.03,0.03); }
+  elapsed=Math.floor((performance.now()-startTime)/1000); document.getElementById('timer').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
   const px=camera.position.x/cellSize, pz=camera.position.z/cellSize; drawMinimap(); const s=128/mazeSize; mapCtx.fillStyle='#fff'; mapCtx.beginPath(); mapCtx.arc(px*s+s/2,pz*s+s/2,3,0,Math.PI*2); mapCtx.fill();
-  if(camera.position.distanceTo(goalMesh.position)<1.1 && !finished){ finished=true; winSound(); if(navigator.vibrate)navigator.vibrate([40,30,40,30,80]); const timeStr=document.getElementById('timer').textContent; document.getElementById('finalTime').textContent=`Waktu: ${timeStr}`; saveBest(elapsed); document.getElementById('nextInfo').textContent=currentLevel<LEVELS.length-1?`Lanjut ke ${LEVELS[currentLevel+1].name}`:'Kamu tamatkan semua!'; document.getElementById('board').textContent=getBoardText(); document.getElementById('win').style.display='flex'; }
-  // update patroli
+  if(camera.position.distanceTo(goalMesh.position)<1.1 && !finished){
+    if(keyCount < 1){
+      // Need key to exit
+      if(!window._needKeyMsg){
+        window._needKeyMsg = true;
+        beep(200, 0.2, 0.08);
+        showToast('🔑 Butuh 1 Key untuk keluar!');
+        setTimeout(()=>{ window._needKeyMsg = false; }, 1500);
+      }
+      return;
+    }
+    finished=true; winSound(); if(navigator.vibrate)navigator.vibrate([40,30,40,30,80]); const timeStr=document.getElementById('timer').textContent; document.getElementById('finalTime').textContent=`Waktu: ${timeStr}`; saveBest(elapsed); document.getElementById('nextInfo').textContent=currentLevel<LEVELS.length-1?`Lanjut ke ${LEVELS[currentLevel+1].name}`:'Kamu tamatkan semua!'; document.getElementById('board').textContent=getBoardText(); document.getElementById('win').style.display='flex'; if(pointerLocked) document.exitPointerLock(); }
+  // update patroli + AI
+  const playerGridX = Math.round(camera.position.x/cellSize);
+  const playerGridZ = Math.round(camera.position.z/cellSize);
   movingObs.forEach(m=>{
-    m.userData.t += delta*0.6*m.userData.dir;
-    if(m.userData.t>1){m.userData.t=1; m.userData.dir=-1;}
-    if(m.userData.t<0){m.userData.t=0; m.userData.dir=1;}
-    const t=m.userData.t;
-    m.position.x = m.userData.ax*(1-t) + m.userData.bx*t;
-    m.position.z = m.userData.az*(1-t) + m.userData.bz*t;
+    const distToPlayer = Math.hypot(playerGridX-m.position.x/cellSize, playerGridZ-m.position.z/cellSize);
+    const ud = m.userData;
+
+    // STATE MACHINE
+    if(ud.state==='patrol'){
+      // Patrol linear
+      ud.t += delta*0.6*ud.dir;
+      if(ud.t>1){ud.t=1; ud.dir=-1;}
+      if(ud.t<0){ud.t=0; ud.dir=1;}
+      m.position.x = ud.ax*(1-ud.t) + ud.bx*ud.t;
+      m.position.z = ud.az*(1-ud.t) + ud.bz*ud.t;
+      // Check if player in range
+      if(distToPlayer < ud.detectRadius){
+        ud.state = 'chase';
+        ud.path = findPath(Math.round(m.position.x/cellSize), Math.round(m.position.z/cellSize), playerGridX, playerGridZ);
+        ud.pathIdx = 0;
+        m.material.color.set(0xff0000);
+        m.material.emissive.set(0xff0000);
+        m.material.emissiveIntensity = 0.5;
+      }
+    } else if(ud.state==='chase'){
+      // Follow A* path
+      ud.pathTimer += delta;
+      if(ud.pathTimer > 0.3){
+        ud.pathTimer = 0;
+        // Recalculate path every few frames
+        ud.path = findPath(Math.round(m.position.x/cellSize), Math.round(m.position.z/cellSize), playerGridX, playerGridZ);
+        ud.pathIdx = 0;
+      }
+      if(ud.path.length > 1 && ud.pathIdx < ud.path.length-1){
+        ud.pathIdx++;
+        const target = ud.path[ud.pathIdx];
+        const tx = target[0]*cellSize, tz = target[1]*cellSize;
+        const dx = tx-m.position.x, dz = tz-m.position.z;
+        const dist = Math.sqrt(dx*dx+dz*dz);
+        if(dist > 0.1){
+          m.position.x += (dx/dist)*ud.speed*delta*cellSize;
+          m.position.z += (dz/dist)*ud.speed*delta*cellSize;
+        }
+      }
+      // Check if player escaped
+      if(distToPlayer > ud.detectRadius * 1.5){
+        ud.state = 'search';
+        ud.lastPlayerX = playerGridX;
+        ud.lastPlayerZ = playerGridZ;
+        ud.searchTimer = 3;
+        m.material.color.set(0xff6600);
+        m.material.emissive.set(0xff6600);
+      }
+    } else if(ud.state==='search'){
+      // Go to last known position
+      ud.searchTimer -= delta;
+      const dx = ud.lastPlayerX*cellSize - m.position.x;
+      const dz = ud.lastPlayerZ*cellSize - m.position.z;
+      const dist = Math.sqrt(dx*dx+dz*dz);
+      if(dist > 0.5){
+        m.position.x += (dx/dist)*ud.speed*0.7*delta*cellSize;
+        m.position.z += (dz/dist)*ud.speed*0.7*delta*cellSize;
+      }
+      if(ud.searchTimer <= 0){
+        ud.state = 'patrol';
+        m.material.color.set(0xff3333);
+        m.material.emissive.set(0x440000);
+        m.material.emissiveIntensity = 0;
+      }
+    }
     m.rotation.y += delta*2;
+
+    // ENEMY HIT PLAYER
+    if(camera.position.distanceTo(m.position)<0.8){
+      if(hasShield){
+        hasShield = false;
+        beep(600, 0.2, 0.08);
+        showToast('🛡️ Shield menyerap serangan!');
+        // Push enemy away
+        m.position.x += (m.position.x-camera.position.x)*2;
+        m.position.z += (m.position.z-camera.position.z)*2;
+      } else if(!window._hitCooldown){
+        window._hitCooldown = true;
+        beep(150, 0.3, 0.1);
+        if(navigator.vibrate) navigator.vibrate([100,50,100]);
+        showToast('💥 Kena enemy! Kembali ke start');
+        camera.position.set(startPos.x*cellSize,0.8,startPos.z*cellSize);
+        camera.lookAt(startPos.x*cellSize,0.8,startPos.z*cellSize+2);
+        setTimeout(()=>{ window._hitCooldown = false; }, 1000);
+      }
+    }
   });
   // cek lubang
   for(const h of holes){
@@ -275,12 +625,83 @@ function gameLoop(){ requestAnimationFrame(gameLoop); if(paused||finished) retur
       break;
     }
   }
+  // POWER-UP PICKUP
+  for(let i=powerups.length-1;i>=0;i--){
+    const pu = powerups[i];
+    pu.rotation.y += delta*2;
+    pu.position.y = pu.userData.baseY + Math.sin(performance.now()*0.004+i)*0.15;
+    if(camera.position.distanceTo(pu.position)<1.0){
+      beep(800+i*100, 0.1, 0.08);
+      applyPowerUp(pu.userData.type);
+      scene.remove(pu);
+      powerups.splice(i,1);
+    }
+  }
+  // SPEED BOOST EXPIRE
+  if(speedBoostEnd > 0 && performance.now() > speedBoostEnd){
+    speedBoostEnd = 0;
+  }
+  // UPDATE HUD
+  const hud = document.getElementById('hud');
+  hud.style.display = 'block';
+  document.getElementById('hudKey').textContent = '🔑 '+keyCount;
+  document.getElementById('hudShield').style.display = hasShield ? 'inline-block' : 'none';
+  document.getElementById('hudSpeed').style.display = speedBoostEnd > 0 ? 'inline-block' : 'none';
+  document.getElementById('hudCompass').style.display = compassOn ? 'inline-block' : 'none';
   goalMesh.rotation.y+=delta*1.5; goalMesh.position.y=0.45+Math.sin(performance.now()*0.003)*0.1; renderer.render(scene,camera);
 }
 
 function saveBest(sec){ const key='mazeBest'; const data=JSON.parse(localStorage.getItem(key)||'{}'); const lvl=LEVELS[currentLevel].name; if(!data[lvl]||sec<data[lvl]) data[lvl]=sec; localStorage.setItem(key,JSON.stringify(data)); localStorage.setItem('mazeLevel',currentLevel); }
 function getBoardText(){ const data=JSON.parse(localStorage.getItem('mazeBest')||'{}'); let txt='🏆 Waktu Terbaik:\n'; LEVELS.forEach(l=>{ if(data[l.name]){ const s=data[l.name]; txt+=`${l.name}: ${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}\n`; } }); return txt; }
 function nextLevel(){ currentLevel=(currentLevel+1)%LEVELS.length; localStorage.setItem('mazeLevel',currentLevel); loadLevel(); }
+
+// POWER-UP SYSTEM
+function applyPowerUp(type){
+  if(type==='key'){
+    keyCount++;
+    showToast('🔑 Key! ('+keyCount+')');
+  } else if(type==='speed'){
+    speedBoostEnd = performance.now() + 5000;
+    showToast('⚡ Speed Boost! 5 detik');
+  } else if(type==='shield'){
+    hasShield = true;
+    showToast('🛡️ Shield aktif!');
+  } else if(type==='compass'){
+    compassOn = !compassOn;
+    showToast(compassOn ? '🧭 Compass ON' : '🧭 Compass OFF');
+  }
+}
+
+function getSpeedMultiplier(){
+  return speedBoostEnd > 0 ? 1.5 : 1.0;
+}
+
+// A* PATHFINDING
+function findPath(sx,sz,ex,ez){
+  const open=[], closed=new Set();
+  open.push({x:sx,z:sz,g:0,h:Math.abs(sx-ex)+Math.abs(sz-ez),parent:null});
+  while(open.length>0){
+    open.sort((a,b)=>(a.g+a.h)-(b.g+b.h));
+    const curr=open.shift();
+    const key=curr.x+','+curr.z;
+    if(curr.x===ex&&curr.z===ez){
+      const path=[]; let n=curr;
+      while(n){path.unshift([n.x,n.z]);n=n.parent;}
+      return path;
+    }
+    if(closed.has(key)) continue;
+    closed.add(key);
+    for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nx=curr.x+dx, nz=curr.z+dz;
+      const nkey=nx+','+nz;
+      if(closed.has(nkey)) continue;
+      if(nx<0||nx>=mazeSize||nz<0||nz>=mazeSize) continue;
+      if(grid[nz][nx]===1) continue;
+      open.push({x:nx,z:nz,g:curr.g+1,h:Math.abs(nx-ex)+Math.abs(nz-ez),parent:curr});
+    }
+  }
+  return [];
+}
 
 themeIdx=parseInt(localStorage.getItem('mazeTheme')||'0');
 scaleIdx=parseInt(localStorage.getItem('mazeScale')||'2');
